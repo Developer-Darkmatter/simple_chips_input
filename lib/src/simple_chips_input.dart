@@ -96,7 +96,7 @@ class SimpleChipsInput extends StatefulWidget {
   /// Style for the textfield.
   final TextFormFieldStyle textFormFieldStyle;
 
-  final void Function(String)? onChanged;
+  final void Function(List<String>)? onChanged;
   final void Function()? onEditingComplete;
   final void Function(String)? onSubmitted;
   final void Function(String)? onSaved;
@@ -154,6 +154,7 @@ class SimpleChipsInputState extends State<SimpleChipsInput> {
                   setState(() {
                     _chipsText.removeAt(i);
                   });
+                  widget.onChanged?.call(_chipsText);
                 },
                 child: widget.deleteIcon,
               ),
@@ -221,7 +222,7 @@ class SimpleChipsInputState extends State<SimpleChipsInput> {
                         });
                       }
                     }
-                    widget.onChanged?.call(value);
+                    widget.onChanged?.call(_chipsText);
                   },
                   decoration: widget.textFormFieldStyle.decoration,
                   validator: (value) {
