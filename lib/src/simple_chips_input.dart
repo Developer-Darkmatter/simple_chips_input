@@ -30,6 +30,7 @@ class SimpleChipsInput extends StatefulWidget {
     this.createCharacter = ' ',
     this.deleteIcon,
     this.validateInput = false,
+    this.maxChips = 5,
     this.validateInputMethod,
     this.eraseKeyLabel = 'Backspace',
     this.formKey,
@@ -96,6 +97,8 @@ class SimpleChipsInput extends StatefulWidget {
   /// Style for the textfield.
   final TextFormFieldStyle textFormFieldStyle;
 
+  final int maxChips;
+
   final void Function(List<String>)? onChanged;
   final void Function()? onEditingComplete;
   final void Function(String)? onSubmitted;
@@ -129,6 +132,10 @@ class SimpleChipsInputState extends State<SimpleChipsInput> {
     _controller = widget.controller ?? TextEditingController();
     _formKey = widget.formKey ?? GlobalKey<FormState>();
     _focusNode = widget.focusNode ?? FocusNode();
+    if(mounted){
+      _chipsText.addAll(_controller.text.split(widget.separatorCharacter));
+      _controller.text = "";
+    }
   }
 
   List<Widget> _buildChipsSection() {
@@ -172,111 +179,119 @@ class SimpleChipsInputState extends State<SimpleChipsInput> {
       child: Container(
         padding: widget.paddingInsideWidgetContainer,
         decoration: widget.widgetContainerDecoration,
-        child: SingleChildScrollView(
-          child: Wrap(
-            children: [
-              if (widget.placeChipsSectionAbove) ...[
-                ..._buildChipsSection(),
-              ],
-              RawKeyboardListener(
-                focusNode: FocusNode(),
-                onKey: (event) {
-                  if(event is RawKeyUpEvent) {
-                    return;
-                  }
-                  if (event.data.logicalKey.keyLabel == widget.eraseKeyLabel) {
-                    if (_controller.text.isEmpty && _chipsText.isNotEmpty) {
-                      setState(() {
-                        widget.onChipDeleted?.call(_chipsText.last, _chipsText.length - 1);
-                        _chipsText.removeLast();
-                      });
+        child: GestureDetector(
+          onTap: (){
+            _focusNode.requestFocus();
+          },
+          child: SingleChildScrollView(
+            child: Wrap(
+              children: [
+                if (widget.placeChipsSectionAbove) ...[
+                  ..._buildChipsSection(),
+                ],
+                RawKeyboardListener(
+                  focusNode: FocusNode(),
+                  onKey: (event) {
+                    if(event is RawKeyUpEvent) {
+                      return;
                     }
-                  }
-                },
-                child: TextFormField(
-                  autofocus: widget.autoFocus,
-                  focusNode: _focusNode,
-                  controller: _controller,
-                  keyboardType: widget.textFormFieldStyle.keyboardType,
-                  maxLines: widget.textFormFieldStyle.maxLines,
-                  minLines: widget.textFormFieldStyle.minLines,
-                  enableSuggestions:
-                      widget.textFormFieldStyle.enableSuggestions,
-                  showCursor: widget.textFormFieldStyle.showCursor,
-                  cursorWidth: widget.textFormFieldStyle.cursorWidth,
-                  cursorColor: widget.textFormFieldStyle.cursorColor,
-                  cursorRadius: widget.textFormFieldStyle.cursorRadius,
-                  cursorHeight: widget.textFormFieldStyle.cursorHeight,
-                  onChanged: (value) {
-                    if (value.endsWith(widget.createCharacter)) {
-                      _controller.text = _controller.text
-                          .substring(0, _controller.text.length - 1);
-                      _controller.selection = TextSelection.fromPosition(
-                        TextPosition(offset: _controller.text.length),
-                      );
-                      if (_formKey.currentState!.validate()) {
+                    if (event.data.logicalKey.keyLabel == widget.eraseKeyLabel) {
+                      if (_controller.text.isEmpty && _chipsText.isNotEmpty) {
                         setState(() {
-                          _chipsText.add(_controller.text);
-                          widget.onChipAdded?.call(_controller.text);
-                          _controller.clear();
+                          widget.onChipDeleted?.call(_chipsText.last, _chipsText.length - 1);
+                          _chipsText.removeLast();
                         });
                       }
                     }
-                    widget.onChanged?.call(_chipsText);
                   },
-                  decoration: widget.textFormFieldStyle.decoration,
-                  validator: (value) {
-                    if (widget.validateInput &&
-                        widget.validateInputMethod != null) {
-                      return widget.validateInputMethod!(value!);
-                    }
-                    return null;
-                  },
-                  onEditingComplete: () {
-                    widget.onEditingComplete?.call();
-                  },
-                  onFieldSubmitted: ((value) {
-                    _output = '';
-                    for (String text in _chipsText) {
-                      _output += text + widget.separatorCharacter;
-                    }
-                    if (value.isNotEmpty) {
-                      if (_formKey.currentState!.validate()) {
-                        setState(() {
-                          _chipsText.add(_controller.text);
-                          widget.onChipAdded?.call(_controller.text);
-                          _output +=
-                              _controller.text + widget.separatorCharacter;
-                          _controller.clear();
-                        });
+                  child: TextFormField(
+                    autofocus: widget.autoFocus,
+                    focusNode: _focusNode,
+                    controller: _controller,
+                    keyboardType: widget.textFormFieldStyle.keyboardType,
+                    maxLines: widget.textFormFieldStyle.maxLines,
+                    minLines: widget.textFormFieldStyle.minLines,
+                    enableSuggestions:
+                        widget.textFormFieldStyle.enableSuggestions,
+                    showCursor: widget.textFormFieldStyle.showCursor,
+                    cursorWidth: widget.textFormFieldStyle.cursorWidth,
+                    cursorColor: widget.textFormFieldStyle.cursorColor,
+                    cursorRadius: widget.textFormFieldStyle.cursorRadius,
+                    cursorHeight: widget.textFormFieldStyle.cursorHeight,
+                    enabled: _chipsText.length < widget.maxChips,
+                    onChanged: (value) {
+                      if (value.endsWith(widget.createCharacter)) {
+                        _controller.text = _controller.text
+                            .substring(0, _controller.text.length - 1);
+                        _controller.selection = TextSelection.fromPosition(
+                          TextPosition(offset: _controller.text.length),
+                        );
+                        if (_formKey.currentState!.validate()) {
+                          setState(() {
+                            if(_controller.text.isNotEmpty && _chipsText.length < widget.maxChips){
+                              _chipsText.add(_controller.text);
+                              widget.onChipAdded?.call(_controller.text);
+                            }
+                            _controller.clear();
+                          });
+                        }
                       }
-                    }
-                    widget.onSubmitted?.call(_output);
-                  }),
-                  onSaved: (value) {
-                    _output = '';
-                    for (String text in _chipsText) {
-                      _output += text + widget.separatorCharacter;
-                    }
-                    if (value!.isNotEmpty) {
-                      if (_formKey.currentState!.validate()) {
-                        setState(() {
-                          _chipsText.add(_controller.text);
-                          widget.onChipAdded?.call(_controller.text);
-                          _output +=
-                              _controller.text + widget.separatorCharacter;
-                          _controller.clear();
-                        });
+                      widget.onChanged?.call(_chipsText);
+                    },
+                    decoration: widget.textFormFieldStyle.decoration,
+                    validator: (value) {
+                      if (widget.validateInput &&
+                          widget.validateInputMethod != null) {
+                        return widget.validateInputMethod!(value!);
                       }
-                    }
-                    widget.onSaved?.call(_output);
-                  },
+                      return null;
+                    },
+                    onEditingComplete: () {
+                      widget.onEditingComplete?.call();
+                    },
+                    onFieldSubmitted: ((value) {
+                      _output = '';
+                      for (String text in _chipsText) {
+                        _output += text + widget.separatorCharacter;
+                      }
+                      if (value.isNotEmpty) {
+                        if (_formKey.currentState!.validate()) {
+                          setState(() {
+                            _chipsText.add(_controller.text);
+                            widget.onChipAdded?.call(_controller.text);
+                            _output +=
+                                _controller.text + widget.separatorCharacter;
+                            _controller.clear();
+                          });
+                        }
+                      }
+                      widget.onSubmitted?.call(_output);
+                    }),
+                    onSaved: (value) {
+                      _output = '';
+                      for (String text in _chipsText) {
+                        _output += text + widget.separatorCharacter;
+                      }
+                      if (value!.isNotEmpty) {
+                        if (_formKey.currentState!.validate()) {
+                          setState(() {
+                            _chipsText.add(_controller.text);
+                            widget.onChipAdded?.call(_controller.text);
+                            _output +=
+                                _controller.text + widget.separatorCharacter;
+                            _controller.clear();
+                          });
+                        }
+                      }
+                      widget.onSaved?.call(_output);
+                    },
+                  ),
                 ),
-              ),
-              if (!widget.placeChipsSectionAbove) ...[
-                ..._buildChipsSection(),
+                if (!widget.placeChipsSectionAbove) ...[
+                  ..._buildChipsSection(),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
